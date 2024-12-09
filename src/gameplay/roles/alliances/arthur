@@ -21,14 +21,14 @@ class AllianceIsolde implements IRole {
     const roleTags: Record<string, string> = {};
 
     for (let i = 0; i < this.room.playersInGame.length; i++) {
-      if (this.room.playersInGame[i].alliance === Alliance.Servants) {
-        roleTags[
-          this.room.anonymizer.anon(this.room.playersInGame[i].username)
-        ] = Alliance.Servants;
+        if (this.room.playersInGame[i].alliance === Alliance.Servants) {
+          servants.push(
+            this.room.anonymizer.anon(this.room.playersInGame[i].username),
+          );
+        }
       }
-    }
 
-    return { spies: [], roleTags };
+      return { servants, roleTags: {} };
   }
 
   checkSpecialMove(): void {}
