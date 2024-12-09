@@ -36,4 +36,4 @@ class AllianceIsolde implements IRole {
   getPublicGameData(): any {}
 }
 
-export default Tristan;
+export default Arthur;
