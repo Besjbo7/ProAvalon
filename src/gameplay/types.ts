@@ -21,6 +21,9 @@ export interface IRecoverable {
 export enum Alliance {
   Resistance = 'Resistance',
   Spy = 'Spy',
+  Disciple = 'Disciple',
+  Minion = 'Minion',
+  Servant = 'Servant',
 }
 
 export interface RoleConstructor {
