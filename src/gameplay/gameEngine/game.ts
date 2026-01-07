@@ -19,7 +19,7 @@ import { VoidGameTracker } from './voidGameTracker';
 import { SocketUser } from '../../sockets/types';
 import { avalonRoles, rolesThatCantGuessMerlin } from './roles/roles';
 import { avalonCards } from './cards/cards';
-import { avalonPhases, commonPhases } from './phases/phases';
+import { commonPhases, avalonPhases, alliancesPhases } from './phases/phases';
 import { Card } from './cards/types';
 import { Role } from './roles/types';
 import { millisToStr } from '../../util/time';
@@ -188,8 +188,10 @@ class Game extends Room {
 
     // Reload all objects so that their functions are also generated
     // Functions are not stored with JSONified during storage
-    this.commonPhases = this.initialiseGameDependencies(commonPhases);
-
+   this.commonPhases = this.initialiseGameDependencies({
+  ...commonPhases,
+  ...alliancesPhases,
+});
     this.specialRoles = this.initialiseGameDependencies(avalonRoles);
     this.specialPhases = this.initialiseGameDependencies(avalonPhases);
     this.specialCards = this.initialiseGameDependencies(avalonCards);
@@ -373,7 +375,17 @@ class Game extends Room {
   }
 
   // start game
-  startGame(options: string[]) {
+import { GameMode, strToGameMode } from './gameModes'; // adjust path
+
+startGame(options: string[]) {
+  const mode = strToGameMode(this.gameMode);
+
+  if (mode === GameMode.ALLIANCES) {
+    return this.startGameAlliances(); // new mode
+  }
+
+  // existing Avalon code continues...
+}
     if (
       this.socketsOfPlayers.length < 5 ||
       this.socketsOfPlayers.length > 10 ||
@@ -2296,6 +2308,26 @@ for (let i = 0; i < this.playersInGame.length; i++) {
 export default Game;
 
 // Helpful functions
+
+startGameAlliances() {
+  // Hard guard (should already be enforced in room.ts)
+  if (this.socketsOfPlayers.length !== 9) {
+    this.sendText('Alliances requires exactly 9 players.', 'server-text');
+    this.canJoin = true;
+    this.gamePlayerLeftDuringReady = false;
+    return false;
+  }
+
+  // TODO: Replace entire Avalon initialization with Alliances initialization:
+  // - shuffle players
+  // - assign 3 factions and 9 roles
+  // - set up initial phase: PickingTeam
+  // - set Alliances mission sizing state
+  // - send start-of-game private reminders
+  // - etc.
+  throw new Error('Alliances mode not yet implemented: startGameAlliances()');
+}
+
 
 export function getRandomInt(min, max) {
   min = Math.ceil(min);

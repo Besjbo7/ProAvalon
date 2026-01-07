@@ -15,6 +15,16 @@ class VotingMission implements IPhase {
     this.thisRoom = thisRoom_;
   }
 
+import { GameMode, strToGameMode } from '../gameModes'; // adjust path
+
+// inside handler:
+if (strToGameMode(this.thisRoom.gameMode) === GameMode.ALLIANCES) {
+  // You should never be here in Alliances.
+  // If you are, it means VotingTeam routing is wrong or client is out of sync.
+  this.thisRoom.sendText('Internal error: Alliances cannot use standard mission voting.', 'server-text');
+  return;
+}
+
   gameMove(
     socket: SocketUser,
     buttonPressed: string,

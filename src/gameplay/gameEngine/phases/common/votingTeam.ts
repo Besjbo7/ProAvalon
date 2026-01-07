@@ -61,7 +61,11 @@ class VotingTeam implements IPhase {
         const outcome = this.calcVotes(this.thisRoom.votes);
 
         if (outcome === 'yes') {
-          this.thisRoom.changePhase(Phase.VotingMission);
+          if (isAlliancesRoom(this.thisRoom)) {
+  this.thisRoom.changePhase(Phase.AlliancesPreVotingMission);
+} else {
+  this.thisRoom.changePhase(Phase.VotingMission);
+}
           this.thisRoom.playersYetToVote = this.thisRoom.proposedTeam.slice();
 
           const str = `Mission ${this.thisRoom.missionNum}.${
@@ -74,18 +78,26 @@ class VotingTeam implements IPhase {
         }
         // Hammer reject
         else if (outcome === 'no' && this.thisRoom.pickNum >= 5) {
-          this.thisRoom.lastProposedTeam = this.thisRoom.proposedTeam;
-          this.thisRoom.missionHistory[this.thisRoom.missionHistory.length] =
-            'failed';
+  if (isAlliancesRoom(this.thisRoom)) {
+    // Alliances rule: 5th proposal auto-approves (no vote).
+    // Treat this as approved; do NOT increment leader, do NOT end game.
+    this.thisRoom.changePhase(Phase.AlliancesPreVotingMission); // or post, once you track stage
+    this.thisRoom.playersYetToVote = this.thisRoom.proposedTeam.slice();
 
-          this.thisRoom.howWasWon = 'Hammer rejected.';
-          this.thisRoom.sendText(
-            'The hammer was rejected.',
-            'gameplay-text-red',
-          );
-          this.thisRoom.winner = Alliance.Spy;
+    const str = `Mission ${this.thisRoom.missionNum}.${this.thisRoom.pickNum} was automatically approved on the fifth proposal.`;
+    this.thisRoom.sendText(str, 'gameplay-text');
+  } else {
+    // Existing Avalon hammer loss
+    this.thisRoom.lastProposedTeam = this.thisRoom.proposedTeam;
+    this.thisRoom.missionHistory[this.thisRoom.missionHistory.length] = 'failed';
 
-          this.thisRoom.finishGame(Alliance.Spy);
+    this.thisRoom.howWasWon = 'Hammer rejected.';
+    this.thisRoom.sendText('The hammer was rejected.', 'gameplay-text-red');
+    this.thisRoom.winner = Alliance.Spy;
+
+    this.thisRoom.finishGame(Alliance.Spy);
+  }
+}
         } else if (outcome === 'no') {
           this.thisRoom.proposedTeam = [];
           this.thisRoom.changePhase(Phase.PickingTeam);

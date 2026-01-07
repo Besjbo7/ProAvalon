@@ -11,6 +11,12 @@ import Lady from './avalon/lady';
 import Ref from './avalon/ref';
 import Sire from './avalon/sire';
 
+import AlliancesPreVotingMission from './alliances/preVotingMission';
+import AllianceSelect from './alliances/allianceSelect';
+import AlliancesPostVotingMission from './alliances/postVotingMission';
+
+
+
 export const commonPhases = {
   [Finished.phase]: Finished,
   [Frozen.phase]: Frozen,
@@ -27,3 +33,16 @@ export const avalonPhases = {
   [Ref.phase]: Ref,
   [Sire.phase]: Sire,
 };
+
+export const alliancesPhases = {
+  [AlliancesPreVotingMission.phase]: AlliancesPreVotingMission,
+  [AllianceSelect.phase]: AllianceSelect,
+  [AlliancesPostVotingMission.phase]: AlliancesPostVotingMission,
+};
+
+export const allPhases = {
+  ...commonPhases,
+  ...avalonPhases,
+  ...alliancesPhases,
+};
+

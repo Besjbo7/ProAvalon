@@ -1,9 +1,14 @@
 export enum GameMode {
   AVALON = 'avalon',
   AVALON_BOT = 'avalonBot',
+  ALLIANCES = 'alliances',
 }
 
-export const GAME_MODE_NAMES = [GameMode.AVALON /*, AVALON_BOT*/];
+export const GAME_MODE_NAMES = [
+  GameMode.AVALON,
+  GameMode.ALLIANCES,
+  /* GameMode.AVALON_BOT */
+];
 
 export function strToGameMode(gameMode: string): GameMode {
   switch (gameMode) {
@@ -11,6 +16,8 @@ export function strToGameMode(gameMode: string): GameMode {
       return GameMode.AVALON;
     case GameMode.AVALON_BOT:
       return GameMode.AVALON_BOT;
+    case GameMode.ALLIANCES:
+      return GameMode.ALLIANCES;
     default: {
       const errStr = `Invalid gameMode string. Got ${gameMode}`;
       console.warn(errStr);

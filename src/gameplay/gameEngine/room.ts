@@ -103,7 +103,10 @@ class Room {
     this.kickedPlayers = [];
 
     // Phases Cards and Roles to use
-    this.commonPhases = this.initialiseGameDependencies(commonPhases);
+  this.commonPhases = this.initialiseGameDependencies({
+  ...commonPhases,
+  ...alliancesPhases,
+});
     this.specialRoles = this.initialiseGameDependencies(avalonRoles);
     this.specialPhases = this.initialiseGameDependencies(avalonPhases);
     this.specialCards = this.initialiseGameDependencies(avalonCards);
@@ -598,21 +601,43 @@ class Room {
     targetSocket.emit('update-game-modes-in-room', obj);
   }
 
-  hostTryStartGame(
-    options: string[],
-    gameMode: string,
-    timeouts: Timeouts,
-    anonymousMode: boolean,
-  ) {
-    if (this.gameStarted === true) {
+import { GameMode, strToGameMode } from './gameModes'; // adjust relative path
+
+function isAlliancesRoom(room: any) {
+  try {
+    return strToGameMode(room.gameMode) === GameMode.ALLIANCES;
+  } catch {
+    return false;
+  }
+}
+
+
+hostTryStartGame(options: string[], gameMode: string, timeouts: Timeouts, anonymousMode: boolean) {
+  // ...
+
+  const mode = strToGameMode(gameMode);
+
+  if (mode === GameMode.ALLIANCES) {
+    if (this.socketsOfPlayers.length !== 9) {
+      this.socketsOfPlayers[0].emit(
+        'danger-alert',
+        'Alliances requires exactly 9 players to start.',
+      );
       return false;
     }
 
-    if (this.socketsOfPlayers.length < MIN_PLAYERS) {
+    // Optional: block Avalon options for now (recommended)
+    if (options.length > 0) {
       this.socketsOfPlayers[0].emit(
         'danger-alert',
-        'Minimum 5 players to start. ',
+        'Alliances does not use custom role/card options. Please clear options and try again.',
       );
+      return false;
+    }
+  } else {
+    // Existing Avalon minimum check stays
+    if (this.socketsOfPlayers.length < MIN_PLAYERS) {
+      this.socketsOfPlayers[0].emit('danger-alert', 'Minimum 5 players to start. ');
       return false;
     }
 
@@ -621,17 +646,14 @@ class Room {
       this.socketsOfPlayers[0].emit('danger-alert', checkOptions.errMessage);
       return false;
     }
+  }
 
-    // Can't start game if joining is locked as well.
-    // Will unlock when existing readyPrompt times out or is rejected.
-    if (this.lockJoin) {
-      return;
-    }
+  // ...
+  this.options = options;
+  this.gameMode = gameMode;
+  // ...
+}
 
-    this.lockJoin = true;
-
-    this.options = options;
-    this.gameMode = gameMode;
 
     let rolesInStr = '';
     options.forEach((element) => {

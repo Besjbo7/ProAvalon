@@ -13,6 +13,11 @@ export enum Phase {
   Ref = 'Ref',
   Sire = 'Sire',
 
+  // Alliances mode
+  AlliancesPreVotingMission = 'AlliancesPreVotingMission',
+  AllianceSelect = 'AllianceSelect',
+  AlliancesPostVotingMission = 'AlliancesPostVotingMission',
+
   // Misc
   Paused = 'Paused',
   Frozen = 'Frozen',
@@ -29,7 +34,13 @@ const gamePhases = [
   Phase.Lady,
   Phase.Ref,
   Phase.Sire,
+
+  // Alliances
+  Phase.AlliancesPreVotingMission,
+  Phase.AllianceSelect,
+  Phase.AlliancesPostVotingMission,
 ];
+
 
 export function isGamePhase(phase: Phase): boolean {
   return gamePhases.includes(phase);
