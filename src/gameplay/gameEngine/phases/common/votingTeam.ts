@@ -1,7 +1,17 @@
 import usernamesIndexes from '../../../../myFunctions/usernamesIndexes';
 import { ButtonSettings, IPhase, Phase } from '../types';
 import { Alliance } from '../../types';
+import { GameMode, strToGameMode } from '../../gameModes';
 import { SocketUser } from '../../../../sockets/types';
+
+function isAlliancesRoom(room: any): boolean {
+  try {
+    return strToGameMode(room.gameMode) === GameMode.ALLIANCES;
+  } catch {
+    return false;
+  }
+}
+
 
 class VotingTeam implements IPhase {
   static phase = Phase.VotingTeam;
@@ -60,29 +70,32 @@ class VotingTeam implements IPhase {
 
         const outcome = this.calcVotes(this.thisRoom.votes);
 
-        if (outcome === 'yes') {
-          if (isAlliancesRoom(this.thisRoom)) {
-  this.thisRoom.changePhase(Phase.AlliancesPreVotingMission);
-} else {
-  this.thisRoom.changePhase(Phase.VotingMission);
-}
-          this.thisRoom.playersYetToVote = this.thisRoom.proposedTeam.slice();
+if (outcome === 'yes') {
+  if (isAlliancesRoom(this.thisRoom)) {
+    this.thisRoom.missionVotes = [];
+    this.thisRoom.playersYetToVote = this.thisRoom.proposedTeam.slice();
+    this.thisRoom.changePhase(Phase.VotingMission);
+  } else {
+    this.thisRoom.playersYetToVote = this.thisRoom.proposedTeam.slice();
+    this.thisRoom.changePhase(Phase.VotingMission);
+  }
 
-          const str = `Mission ${this.thisRoom.missionNum}.${
-            this.thisRoom.pickNum
-          } was approved.${this.getStrApprovedRejectedPlayers(
-            this.thisRoom.votes,
-            this.thisRoom.playersInGame,
-          )}`;
-          this.thisRoom.sendText(str, 'gameplay-text');
-        }
+  const str = `Mission ${this.thisRoom.missionNum}.${this.thisRoom.pickNum} was approved.${this.getStrApprovedRejectedPlayers(
+    this.thisRoom.votes,
+    this.thisRoom.playersInGame,
+  )}`;
+  this.thisRoom.sendText(str, 'gameplay-text');
+}
+
+
+
         // Hammer reject
-        else if (outcome === 'no' && this.thisRoom.pickNum >= 5) {
+else if (outcome === 'no' && this.thisRoom.pickNum >= 5) {
   if (isAlliancesRoom(this.thisRoom)) {
     // Alliances rule: 5th proposal auto-approves (no vote).
-    // Treat this as approved; do NOT increment leader, do NOT end game.
-    this.thisRoom.changePhase(Phase.AlliancesPreVotingMission); // or post, once you track stage
-    this.thisRoom.playersYetToVote = this.thisRoom.proposedTeam.slice();
+this.thisRoom.missionVotes = [];
+this.thisRoom.playersYetToVote = this.thisRoom.proposedTeam.slice();
+this.thisRoom.changePhase(Phase.VotingMission);
 
     const str = `Mission ${this.thisRoom.missionNum}.${this.thisRoom.pickNum} was automatically approved on the fifth proposal.`;
     this.thisRoom.sendText(str, 'gameplay-text');
@@ -97,21 +110,18 @@ class VotingTeam implements IPhase {
 
     this.thisRoom.finishGame(Alliance.Spy);
   }
+} else if (outcome === 'no') {
+  this.thisRoom.proposedTeam = [];
+  this.thisRoom.changePhase(Phase.PickingTeam);
+
+  const str = `Mission ${this.thisRoom.missionNum}.${this.thisRoom.pickNum} was rejected.${this.getStrApprovedRejectedPlayers(
+    this.thisRoom.votes,
+    this.thisRoom.playersInGame,
+  )}`;
+  this.thisRoom.sendText(str, 'gameplay-text');
+
+  this.thisRoom.incrementTeamLeader();
 }
-        } else if (outcome === 'no') {
-          this.thisRoom.proposedTeam = [];
-          this.thisRoom.changePhase(Phase.PickingTeam);
-
-          const str = `Mission ${this.thisRoom.missionNum}.${
-            this.thisRoom.pickNum
-          } was rejected.${this.getStrApprovedRejectedPlayers(
-            this.thisRoom.votes,
-            this.thisRoom.playersInGame,
-          )}`;
-          this.thisRoom.sendText(str, 'gameplay-text');
-
-          this.thisRoom.incrementTeamLeader();
-        }
         this.thisRoom.requireSave = true;
       }
 

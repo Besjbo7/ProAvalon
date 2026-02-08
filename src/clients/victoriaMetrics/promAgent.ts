@@ -35,18 +35,32 @@ export class PromAgent {
       throw e;
     }
 
-    if (!process.env.VM_IMPORT_PROMETHEUS_URL) {
-      console.error(`Missing environment variable: VM_IMPORT_PROMETHEUS_URL`);
-      process.exit(1);
-    }
+if (!process.env.VM_IMPORT_PROMETHEUS_URL) {
+  if (process.env.ENV !== 'prod') return;
+  console.error(`Missing environment variable: VM_IMPORT_PROMETHEUS_URL`);
+  return;
+}
 
-    const response = await fetch(process.env.VM_IMPORT_PROMETHEUS_URL, {
-      method: 'POST',
-      body: metrics,
-      headers: {
-        'Content-Type': 'text/plain',
-      },
-    });
+
+let response: Response;
+try {
+  response = await fetch(process.env.VM_IMPORT_PROMETHEUS_URL, {
+    method: 'POST',
+    body: metrics,
+    headers: { 'Content-Type': 'text/plain' },
+  });
+} catch (e: any) {
+  // In local/dev this is not actionable; avoid crashing / unhandled rejection loops.
+  if (process.env.ENV !== 'prod') {
+    console.error(`[metrics] pushMetrics failed: ${e?.message ?? e}`);
+    return;
+  }
+
+  // In prod, log and continue (crashing the game server over metrics is rarely worth it).
+  console.error(`[metrics] pushMetrics failed (prod):`, e);
+  return;
+}
+
 
     if (!response.ok) {
       const errMsg = `Failed to push metrics: status=${response.status} text=${response.statusText}`;
@@ -77,7 +91,8 @@ const dupeMetricErrorHandler = (metricName: string) => {
   const errMsg = `Error metric name already exists: ${metricName}`;
   sendToDiscordAdmins(errMsg);
   console.error(errMsg);
-  process.exit(1);
+  if (process.env.ENV === 'prod') process.exit(1);
 };
+
 
 export const promAgent = new PromAgent(dupeMetricErrorHandler);

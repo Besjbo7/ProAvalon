@@ -13,6 +13,11 @@ import { millisToStr } from '../../util/time';
 import { RoomPlayer } from './types';
 import { isMod } from '../../modsadmins/mods';
 import { isAdmin } from '../../modsadmins/admins';
+import { GameMode, strToGameMode } from './gameModes';
+import { alliancesPhases } from './phases/phases';
+import { alliancesRoles } from './alliances/alliancesRoles';
+
+
 
 export class RoomConfig {
   host: string;
@@ -103,15 +108,23 @@ class Room {
     this.kickedPlayers = [];
 
     // Phases Cards and Roles to use
-  this.commonPhases = this.initialiseGameDependencies({
-  ...commonPhases,
-  ...alliancesPhases,
-});
-    this.specialRoles = this.initialiseGameDependencies(avalonRoles);
-    this.specialPhases = this.initialiseGameDependencies(avalonPhases);
-    this.specialCards = this.initialiseGameDependencies(avalonCards);
-  }
 
+this.commonPhases = this.initialiseGameDependencies(commonPhases);
+
+const mode = strToGameMode(this.gameMode); // or just use this.gameMode if it's already a GameMode
+
+if (mode === GameMode.ALLIANCES) {
+  this.specialPhases = this.initialiseGameDependencies(alliancesPhases);
+  this.specialRoles = this.initialiseGameDependencies(alliancesRoles);
+  this.specialCards = this.initialiseGameDependencies({} as any);
+} else {
+  this.specialPhases = this.initialiseGameDependencies(avalonPhases);
+  this.specialRoles = this.initialiseGameDependencies(avalonRoles);
+  this.specialCards = this.initialiseGameDependencies(avalonCards);
+}
+
+}
+  
   playerJoinRoom(socket, inputPassword) {
     console.log(
       `${socket.request.user.username} has joined room ${this.roomId}`,
@@ -599,17 +612,7 @@ class Room {
 
     // Send the data to the socket.
     targetSocket.emit('update-game-modes-in-room', obj);
-  }
-
-import { GameMode, strToGameMode } from './gameModes'; // adjust relative path
-
-function isAlliancesRoom(room: any) {
-  try {
-    return strToGameMode(room.gameMode) === GameMode.ALLIANCES;
-  } catch {
-    return false;
-  }
-}
+  } 
 
 
 hostTryStartGame(options: string[], gameMode: string, timeouts: Timeouts, anonymousMode: boolean) {
@@ -652,8 +655,11 @@ hostTryStartGame(options: string[], gameMode: string, timeouts: Timeouts, anonym
   this.options = options;
   this.gameMode = gameMode;
   // ...
-}
-
+const safeTimeouts: Timeouts = timeouts ?? {
+  default: 60_000,
+  critMission: 60_000,
+  assassination: 60_000,
+};
 
     let rolesInStr = '';
     options.forEach((element) => {
@@ -665,13 +671,9 @@ hostTryStartGame(options: string[], gameMode: string, timeouts: Timeouts, anonym
 
     rolesInStr += `<br>Ranked: ${this.ranked}`;
     rolesInStr += `<br>Mute Spectators: ${this.muteSpectators}`;
-    rolesInStr += `<br>Default timeout: ${millisToStr(timeouts.default)}`;
-    rolesInStr += `<br>Critical Mission timeout: ${millisToStr(
-      timeouts.critMission,
-    )}`;
-    rolesInStr += `<br>Assassination timeout: ${millisToStr(
-      timeouts.assassination,
-    )}`;
+rolesInStr += `<br>Default timeout: ${millisToStr(safeTimeouts.default)}`;
+rolesInStr += `<br>Critical Mission timeout: ${millisToStr(safeTimeouts.critMission)}`;
+rolesInStr += `<br>Assassination timeout: ${millisToStr(safeTimeouts.assassination)}`;
     rolesInStr += `<br>Anonymous mode: ${anonymousMode}`;
 
     this.sendText('The game is starting!', 'gameplay-text');
@@ -720,3 +722,4 @@ hostTryStartGame(options: string[], gameMode: string, timeouts: Timeouts, anonym
 }
 
 export default Room;
+

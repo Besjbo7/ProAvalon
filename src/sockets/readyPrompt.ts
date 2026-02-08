@@ -20,7 +20,7 @@ export type ReadyPromptResultCallback = (
 
 export class ReadyPrompt {
   // 10 seconds in milliseconds
-  private timeout = 10 * 1000;
+  private timeout = 50 * 1000;
 
   private prompts: Map<number, SingleReadyPrompt> = new Map();
   private nextPromptId = 0;

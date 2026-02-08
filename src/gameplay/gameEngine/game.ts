@@ -27,6 +27,7 @@ import shuffleArray from '../../util/shuffleArray';
 import { Anonymizer } from './anonymizer';
 import { sendReplyToCommand } from '../../sockets/sockets';
 import { gamesPlayedMetric } from '../../metrics/gameMetrics';
+import { GameMode, strToGameMode } from './gameModes';
 
 export const WAITING = 'Waiting';
 export const MIN_PLAYERS = 5;
@@ -196,8 +197,14 @@ class Game extends Room {
     this.specialPhases = this.initialiseGameDependencies(avalonPhases);
     this.specialCards = this.initialiseGameDependencies(avalonCards);
 
-    this.gameTimer = new GameTimer(this, () => new Date());
-    this.gameTimer.configureTimeouts(storedData.timeoutSettings);
+const timeoutSettings: Timeouts = storedData?.timeoutSettings ?? {
+  default: 60_000,
+  critMission: 60_000,        
+  assassination: 60_000,
+};
+
+this.gameTimer = new GameTimer(this, () => new Date());
+this.gameTimer.configureTimeouts(timeoutSettings);
 
     this.voidGameTracker = new VoidGameTracker(this);
 
@@ -374,18 +381,17 @@ class Game extends Room {
     return { success: true, errMessage: '' };
   }
 
-  // start game
-import { GameMode, strToGameMode } from './gameModes'; // adjust path
+  // start game 
 
 startGame(options: string[]) {
   const mode = strToGameMode(this.gameMode);
 
   if (mode === GameMode.ALLIANCES) {
-    return this.startGameAlliances(); // new mode
+    this.startGameAlliances();
+    return;
   }
 
-  // existing Avalon code continues...
-}
+  // existing Avalon startGame code continues...
     if (
       this.socketsOfPlayers.length < 5 ||
       this.socketsOfPlayers.length > 10 ||
@@ -1020,6 +1026,40 @@ for (let i = 0; i < this.playersInGame.length; i++) {
 
     return Room.prototype.getRoomPlayers.call(this);
   }
+
+getMissionTeamSize(): number {
+  console.log('mission size mode check', {
+    gameMode: this.gameMode,
+    missionNum: this.missionNum,
+  });
+
+const mode =
+  typeof this.gameMode === 'string'
+    ? strToGameMode(this.gameMode)
+    : this.gameMode;
+
+console.log('parsed mode', { raw: this.gameMode, parsed: mode });
+
+
+if (mode === GameMode.ALLIANCES) {
+  if (this.alliancesState?.allianceFormed) {
+    const sizes = [4, 6, 5];
+    const idx = this.alliancesState.post?.finalMissionIndex ?? 0;
+    return sizes[Math.min(idx, sizes.length - 1)];
+  }
+
+  // pre-alliance sizes
+  const sizes = [2, 3, 4, 5];
+  return sizes[Math.min(this.missionNum - 1, sizes.length - 1)];
+}
+
+
+  return NUM_PLAYERS_ON_MISSION[
+    this.playersInGame.length - MIN_PLAYERS
+  ][this.missionNum - 1];
+}
+
+
 
   distributeGameData() {
     // distribute roles to each player
@@ -2302,32 +2342,155 @@ for (let i = 0; i < this.playersInGame.length; i++) {
       newRating = R_old - 100;
     }
     return newRating;
-  }
-}
-
-export default Game;
-
-// Helpful functions
+  };
 
 startGameAlliances() {
-  // Hard guard (should already be enforced in room.ts)
-  if (this.socketsOfPlayers.length !== 9) {
-    this.sendText('Alliances requires exactly 9 players.', 'server-text');
+  this.gameMode = GameMode.ALLIANCES as any;
+  if (this.socketsOfPlayers.length !== 9 || this.gamePlayerLeftDuringReady) {
     this.canJoin = true;
     this.gamePlayerLeftDuringReady = false;
     return false;
   }
 
-  // TODO: Replace entire Avalon initialization with Alliances initialization:
-  // - shuffle players
-  // - assign 3 factions and 9 roles
-  // - set up initial phase: PickingTeam
-  // - set Alliances mission sizing state
-  // - send start-of-game private reminders
-  // - etc.
-  throw new Error('Alliances mode not yet implemented: startGameAlliances()');
+  this.startGameTime = new Date();
+  this.gameStarted = true;
+  this.finished = false;
+  this.canJoin = false;
+
+  // If your Room-level lockJoin is the real gate, keep it there.
+  // Setting it here only matters if Game also checks it.
+  // this.lockJoin = true;
+
+  // --- shuffle sockets (copy from Avalon) ---
+  let shuffledIdx: number[] = [];
+  for (let i = 0; i < this.socketsOfPlayers.length; i++) shuffledIdx[i] = i;
+  shuffledIdx = shuffleArray(shuffledIdx);
+
+  const temp = [...this.socketsOfPlayers];
+  for (let i = 0; i < this.socketsOfPlayers.length; i++) {
+    this.socketsOfPlayers[i] = temp[shuffledIdx[i]];
+  }
+
+  // --- init players ---
+  this.playersInGame = [];
+  this.playerUsernamesInGame = [];
+  this.resistanceUsernames = [];
+  this.spyUsernames = [];
+  this.voteHistory = {};
+  this.roleKeysInPlay = [];
+  this.cardKeysInPlay = [];
+  this.missionHistory = [];
+  this.votes = [];
+  this.publicVotes = [];
+  this.playersYetToVote = [];
+  this.proposedTeam = [];
+this.missionVotes = [];
+this.numFailsHistory = [];
+this.critMission = false;
+this.lastProposedTeam = [];
+this.requireSave = false;
+
+
+  // Fixed 9-role deck
+  // (Use your actual Role enum/strings here)
+  const roles = [
+    Role.Arthur,
+    Role.Tristan,
+    Role.Isolde,
+    Role.Mordred,
+    Role.Morgana,
+    Role.Oberon,
+    Role.Merlin,
+    Role.DiscipleOfMerlin,
+    Role.DiscipleOfMerlin,
+  ];
+
+  // Optional: shuffle roles too, or keep deterministic ordering for now
+  const shuffledRoles = shuffleArray([...roles]);
+
+  for (let i = 0; i < this.socketsOfPlayers.length; i++) {
+    const sock = this.socketsOfPlayers[i];
+
+    const username = sock.request.user.username;
+    const userId = sock.request.user.id;
+
+    const role = shuffledRoles[i];
+
+    // Legacy 2-team axis (to keep UI/stat plumbing alive):
+    // Minions => Spy, everyone else => Resistance
+    const alliance =
+      role === Role.Mordred || role === Role.Morgana || role === Role.Oberon
+        ? Alliance.Spy
+        : Alliance.Resistance;
+
+    // True 3-faction axis for Alliances rules (use whatever field name you want)
+    const faction3 =
+      role === Role.Arthur || role === Role.Tristan || role === Role.Isolde
+        ? 'ARTHUR'
+        : role === Role.Mordred || role === Role.Morgana || role === Role.Oberon
+          ? 'MORDRED'
+          : 'MERLIN';
+
+    this.playersInGame[i] = {
+      username,
+      userId,
+      request: sock.request,
+      role,
+      alliance,
+      faction3,
+      // add anything else that other code assumes exists
+    };
+
+    this.playerUsernamesInGame.push(username);
+    this.voteHistory[username] = [];
+
+    if (alliance === Alliance.Resistance) this.resistanceUsernames.push(username);
+    else this.spyUsernames.push(username);
+  }
+
+  this.anonymizer.initialise(this.playerUsernamesInGame, this.anonymousMode);
+
+  for (let i = 0; i < this.playersInGame.length; i++) {
+  const role = this.playersInGame[i].role;
+  this.playersInGame[i].see = this.specialRoles[role].see();
 }
 
+
+  // Standard game start parameters used by common phases
+  this.teamLeader = getRandomInt(0, this.playersInGame.length);
+  this.hammer = (this.teamLeader - 5 + 1 + this.playersInGame.length) % this.playersInGame.length;
+
+  this.missionNum = 1;
+  this.pickNum = 1;
+
+  // Alliances-specific state bucket (minimal)
+  this.alliancesState = {
+    allianceFormed: false,
+    tiredUsernames: new Set<string>(),
+    // add per-faction wins etc later
+  };
+
+  this.sendText('Alliances game started.', 'gameplay-text');
+
+  // Enter the normal loop immediately
+  this.changePhase(Phase.PickingTeam);
+try {
+  this.distributeGameData();
+} catch (e) {
+  console.error('Alliances distributeGameData failed:', e);
+  this.sendText(`Alliances distributeGameData failed: ${String(e)}`, 'server-text');
+}
+
+  return true;
+}
+
+
+
+}
+
+export default Game;
+
+// Helpful functions
 
 export function getRandomInt(min, max) {
   min = Math.ceil(min);
@@ -2433,3 +2596,5 @@ let reverseMapFromMap = function (map, f) {
     return acc;
   }, {});
 };
+
+

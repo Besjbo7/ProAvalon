@@ -13,16 +13,18 @@ export enum Role {
   Mordred = 'Mordred',
   Oberon = 'Oberon',
 
+  Arthur = 'Arthur',
   Tristan = 'Tristan',
   Isolde = 'Isolde',
+  DiscipleOfMerlin = 'DiscipleOfMerlin',
 
   MordredAssassin = 'MordredAssassin',
   Hitberon = 'Hitberon',
 
-    // ADD THESE TWO
   Melron = 'Melron',
   Moregano = 'Moregano',
 }
+
 
 export interface IRole {
   room: Game; // TODO this should probs be removed and a constructor interface added

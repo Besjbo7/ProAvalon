@@ -1,40 +1,39 @@
-import { IPhase } from '../types';
-import Game from '../../game';
-import { postMissionIntro, postMissionResultLine, postMissionBanner, postOutcomeTwoFails, postOutcomeTwoSuccesses } from '../../alliances/messages';
+import { ButtonSettings, IPhase, Phase } from '../types';
+import { SocketUser } from '../../../../sockets/types';
 
-const PostVotingMissionV2: IPhase = {
-  phase: 'AlliancesPostVotingMission',
-  async gameMove(room: Game, move: any) {
-    if (move.kind === 'SubmitMissionVote') {
-      room.submitMissionVote(move.playerId, move.payload);
-      if (room.allMissionVotesIn()) {
-        const { result, fails } = room.modeAlliancesResolvePostMissionWithFails();
-        const { index, pair, opposition, priorSucceeded } = room.modeAlliancesPostContext();
-        const succeeded = result === 'AllianceWin';
-        room.sendPublic(postMissionResultLine(index, succeeded, fails));
-        const banner = postMissionBanner(index, succeeded, priorSucceeded);
-        if (banner) room.sendPublic(banner);
+class AlliancesPostVotingMission implements IPhase {
+  static phase = Phase.AlliancesPostVotingMission;
+  phase = Phase.AlliancesPostVotingMission;
+  showGuns = true;
+  private thisRoom: any;
 
-        room.modeAlliancesPostAppendResult(result);
-        const tally = room.modeAlliancesPostScore();
-        if (tally.allianceWins === 2) {
-          room.sendPublic(postOutcomeTwoSuccesses(pair!, opposition!, room.modeAlliancesOppositionLeaderName()));
-          room.enterAssassinationPhaseForAlliances();
-          return 'Assassination';
-        }
-        if (tally.oppositionWins === 2) {
-          room.sendPublic(postOutcomeTwoFails(pair!, opposition!));
-          room.finishGameWithOppositionVictory();
-          return 'Finished';
-        }
-        room.modeAlliancesPostAdvance();
-        const nextIndex = room.modeAlliancesPostCurrentIndex();
-        room.sendPublic(postMissionIntro(nextIndex, pair!));
-        room.prepareNextPickingTeam();
-        return 'PickingTeam';
-      }
-    }
-  },
-  getPublicGameData(room: Game) { return room.modeAlliancesPostPublic(); },
-};
-export default PostVotingMissionV2;
+  constructor(thisRoom_: any) {
+    this.thisRoom = thisRoom_;
+  }
+
+  gameMove(socket: SocketUser, buttonPressed: string, selectedPlayers: string[]): void {
+    // This phase should not be reachable until Alliances is implemented.
+    this.thisRoom.sendText('Alliances (post-mission) is not implemented yet.', 'server-text');
+  }
+
+  buttonSettings(indexOfPlayer: number): ButtonSettings {
+    return {
+      green: { hidden: true, disabled: true, setText: '' },
+      red: { hidden: true, disabled: true, setText: '' },
+    };
+  }
+
+  numOfTargets(indexOfPlayer: number): number {
+    return null;
+  }
+
+  getStatusMessage(indexOfPlayer: number): string {
+    return 'Monkey monkey monkey.';
+  }
+
+  getProhibitedIndexesToPick(indexOfPlayer: number): number[] {
+    return [];
+  }
+}
+
+export default AlliancesPostVotingMission;

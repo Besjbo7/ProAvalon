@@ -1,6 +1,6 @@
 import usernamesIndexes from '../../../../myFunctions/usernamesIndexes';
 import { ButtonSettings, IPhase, Phase } from '../types';
-import { MIN_PLAYERS, NUM_PLAYERS_ON_MISSION } from '../../game';
+//import { MIN_PLAYERS, NUM_PLAYERS_ON_MISSION } from '../../game'; NO LONGER NEEDED?
 import { SocketUser } from '../../../../sockets/types';
 
 class PickingTeam implements IPhase {
@@ -51,10 +51,7 @@ class PickingTeam implements IPhase {
       this.thisRoom.votes = [];
       this.thisRoom.publicVotes = [];
 
-      const num =
-        NUM_PLAYERS_ON_MISSION[
-          this.thisRoom.playersInGame.length - MIN_PLAYERS
-        ][this.thisRoom.missionNum - 1];
+           const num = this.thisRoom.getMissionTeamSize();
       // console.log("Num player for this.thisRoom mission : " + num);
 
       // Check that the data is valid (i.e. includes only usernames of players)
@@ -74,6 +71,11 @@ class PickingTeam implements IPhase {
 
       // Continue if it passes the above check
       this.thisRoom.proposedTeam = selectedPlayers;
+// Alliances: remember who proposed the mission (used later for AllianceSelect)
+this.thisRoom.lastMissionProposerIndex = this.thisRoom.teamLeader;
+this.thisRoom.lastMissionProposerUsername =
+  this.thisRoom.playersInGame[this.thisRoom.teamLeader]?.username;
+
       // .slice to clone the array
       this.thisRoom.playersYetToVote =
         this.thisRoom.playerUsernamesInGame.slice();
@@ -139,10 +141,7 @@ class PickingTeam implements IPhase {
   }
 
   numOfTargets(indexOfPlayer: number): number {
-    const num =
-      NUM_PLAYERS_ON_MISSION[this.thisRoom.playersInGame.length - MIN_PLAYERS][
-        this.thisRoom.missionNum - 1
-      ];
+        const num = this.thisRoom.getMissionTeamSize();
 
     // If we are not the team leader
     if (indexOfPlayer !== this.thisRoom.teamLeader) {
@@ -157,10 +156,7 @@ class PickingTeam implements IPhase {
       indexOfPlayer !== undefined &&
       indexOfPlayer === this.thisRoom.teamLeader
     ) {
-      const num =
-        NUM_PLAYERS_ON_MISSION[
-          this.thisRoom.playersInGame.length - MIN_PLAYERS
-        ][this.thisRoom.missionNum - 1];
+      const num = this.thisRoom.getMissionTeamSize();
 
       return `Your turn to pick a team. Pick ${num} players.`;
     }

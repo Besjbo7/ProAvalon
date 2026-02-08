@@ -43,6 +43,8 @@ import './metrics/miscellaneousMetrics';
 
 const assetsPath = path.join(__dirname, '../assets');
 
+console.log('[server] boot', new Date().toISOString(), 'pid', process.pid);
+
 // Die if env var isn't given in
 if (
   process.env.ENV !== 'local' &&
@@ -220,7 +222,12 @@ socketServer(io);
 
 // Periodically push metrics every 15 seconds to VictoriaMetrics
 if (process.env.ENV === 'local' || process.env.ENV === 'prod') {
-  setInterval(async () => {
-    await promAgent.pushMetrics();
+  setInterval(() => {
+    promAgent.pushMetrics().catch((e) => {
+      console.error('[metrics] pushMetrics failed:', e);
+      // important: swallow the rejection so it doesn't crash the dev server
+    });
   }, 15000);
 }
+
+
